@@ -10,3 +10,4 @@ resource
 skypilot
 wandb
 makefile
+checkpoints

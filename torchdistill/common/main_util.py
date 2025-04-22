@@ -12,6 +12,8 @@ from .constant import def_logger
 from .file_util import check_if_exists, make_parent_dirs
 from .module_util import check_if_wrapped
 
+import torchdistill.common.bucket_interactions as bi
+
 logger = def_logger.getChild(__name__)
 
 
@@ -351,7 +353,7 @@ def load_ckpt(ckpt_file_path, model=None, optimizer=None, lr_scheduler=None, str
     return ckpt.get('best_value', 0.0), ckpt.get('args', None)
 
 
-def save_ckpt(model, optimizer, lr_scheduler, best_value, args, output_file_path):
+def save_ckpt(model, optimizer, lr_scheduler, best_value, args, output_file_path,remote_save=False,bucket_name=None,checkpoint_key=None):
     """
     Saves a checkpoint file including model, optimizer, best value, parsed args, and learning rate scheduler.
 
@@ -373,3 +375,5 @@ def save_ckpt(model, optimizer, lr_scheduler, best_value, args, output_file_path
     lr_scheduler_state_dict = lr_scheduler.state_dict() if lr_scheduler is not None else None
     save_on_master({'model': model_state_dict, 'optimizer': optimizer.state_dict(), 'best_value': best_value,
                     'lr_scheduler': lr_scheduler_state_dict, 'args': args}, output_file_path)
+    if remote_save:
+        bi.upload_checkpoint(output_file_path, bucket_name, checkpoint_key)

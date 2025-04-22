@@ -95,6 +95,9 @@ models:
     _experiment: &student_experiment !join [*dataset_name, '-', *student_model_key, '_from_', *teacher_model_key]
     src_ckpt:
     dst_ckpt: !join ['./resource/ckpt/', *dataset_name, '/kd/', *student_experiment, '-hyperparameter_tuning.pt']
+    remote_save: True
+    bucket_name: distillationbucket 
+    checkpoint_key: resnet20_from_densenet_hptuning
 
 train:
   log_freq: 100

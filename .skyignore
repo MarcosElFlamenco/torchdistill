@@ -1,8 +1,13 @@
 .github
+
 configs
 !configs/sample/cifar10/kd
+
 demo
+
 distillEnv
+cleanEnv
+
 docs
 examples
 log
@@ -15,3 +20,6 @@ CITATION.bib
 LICENSE
 MANIFEST.in
 README.md
+*Env
+
+checkpoints

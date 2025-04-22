@@ -137,6 +137,12 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
         best_val_top1_accuracy, _ = load_ckpt(src_ckpt_file_path, optimizer=optimizer, lr_scheduler=lr_scheduler)
 
     log_freq = train_config['log_freq']
+    student_config = config["models"]["student_model"]
+    remote_save = student_config.get("remote_save",False)
+    bucket_name = student_config.get("bucket_name",None)
+    checkpoint_key = student_config.get("checkpoint_key",None)
+
+
     student_model_without_ddp = student_model.module if module_util.check_if_wrapped(student_model) else student_model
     start_time = time.time()
     for epoch in range(args.start_epoch, training_box.num_epochs):
@@ -145,11 +151,12 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
         val_top1_accuracy = evaluate(student_model, training_box.val_data_loader, device, device_ids, distributed,
                                      log_freq=log_freq, header='Validation:')
         if val_top1_accuracy > best_val_top1_accuracy and is_main_process():
+            accuracy_checkpoint_key = checkpoint_key + "_" + str(val_top1_accuracy) + ".pth"
             logger.info('Best top-1 accuracy: {:.4f} -> {:.4f}'.format(best_val_top1_accuracy, val_top1_accuracy))
             logger.info('Updating ckpt at {}'.format(dst_ckpt_file_path))
             best_val_top1_accuracy = val_top1_accuracy
             save_ckpt(student_model_without_ddp, optimizer, lr_scheduler,
-                      best_val_top1_accuracy, args, dst_ckpt_file_path)
+                      best_val_top1_accuracy, args, dst_ckpt_file_path,remote_save,bucket_name,accuracy_checkpoint_key)
         training_box.post_epoch_process()
         wandb.log({
             "val_top1_accuracy": val_top1_accuracy
