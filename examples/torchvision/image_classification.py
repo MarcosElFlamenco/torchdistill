@@ -20,6 +20,8 @@ from torchdistill.misc.log import set_basic_log_config, setup_log_file, Smoothed
 from torchdistill.models.official import get_image_classification_model
 from torchdistill.models.registry import get_model
 
+import wandb
+
 logger = def_logger.getChild(__name__)
 
 
@@ -28,6 +30,7 @@ def get_argparser():
     parser.add_argument('--config', required=True, help='yaml file path')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--run_log', help='log file path')
+    parser.add_argument('--project_name', default = "default classification project",help='project name')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N', help='start epoch')
     parser.add_argument('--seed', type=int, help='seed in random number generator')
     parser.add_argument('-disable_cudnn_benchmark', action='store_true', help='disable torch.backend.cudnn.benchmark')
@@ -69,6 +72,7 @@ def train_one_epoch(training_box, device, epoch, log_freq):
         metric_logger.meters['img/s'].update(batch_size / (time.time() - start_time))
         if (torch.isnan(loss) or torch.isinf(loss)) and is_main_process():
             raise ValueError('The training loop was broken due to loss = {}'.format(loss))
+        wandb.log({"train_loss": loss})
 
 
 def compute_accuracy(outputs, targets, topk=(1,)):
@@ -147,6 +151,9 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
             save_ckpt(student_model_without_ddp, optimizer, lr_scheduler,
                       best_val_top1_accuracy, args, dst_ckpt_file_path)
         training_box.post_epoch_process()
+        wandb.log({
+            "val_top1_accuracy": val_top1_accuracy
+        })
 
     if distributed:
         dist.barrier()
@@ -158,6 +165,7 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
 
 
 def main(args):
+
     set_basic_log_config()
     log_file_path = args.run_log
     if is_main_process() and log_file_path is not None:
@@ -170,8 +178,15 @@ def main(args):
 
     set_seed(args.seed)
     config = yaml_util.load_yaml_file(os.path.expanduser(args.config))
+
+
     import_dependencies(config.get('dependencies', None))
-    device = torch.device(args.device)
+    if args.device == "cuda" and not torch.cuda.is_available():
+        print("WARNING: you asked for a GPU but none is available")
+        device = torch.device("cpu")
+    else:
+        print(f"You asked for device {args.device} and that's what you'll get")
+        device = torch.device(args.device)
     dataset_dict = config['datasets']
     models_config = config['models']
     teacher_model_config = models_config.get('teacher_model', None)
@@ -182,6 +197,19 @@ def main(args):
     src_ckpt_file_path = student_model_config.get('src_ckpt', None)
     dst_ckpt_file_path = student_model_config['dst_ckpt']
     student_model = load_model(student_model_config, device, distributed)
+    ##WANDB INIT
+
+    run = wandb.init(
+            project=args.project_name,  # Specify your project
+            config={                        # Track hyperparameters and metadata
+                "run_log": args.run_log,
+                "device": args.device,
+                "teacher_model_config": teacher_model_config,
+                "student_model_config": student_model_config,
+            },
+        )
+
+
     if args.log_config:
         logger.info(config)
 
@@ -207,5 +235,6 @@ def main(args):
 
 
 if __name__ == '__main__':
+    
     argparser = get_argparser()
     main(argparser.parse_args())

@@ -2,3 +2,11 @@
 .ipynb_checkpoints/
 __pycache__/
 .editorconfig
+secrets.mk
+distillEnv
+log
+remote_configs
+resource
+skypilot
+wandb
+makefile
