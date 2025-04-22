@@ -1,18 +1,10 @@
 .github
-
-configs
-!configs/sample/cifar10/kd
-
-demo
-
-distillEnv
-cleanEnv
-
-docs
-examples
 log
 resource
 skypilot
+secrets.mk
+makefile
+
 tests
 torchdistill
 .gitignore
@@ -23,3 +15,15 @@ README.md
 *Env
 
 checkpoints
+
+
+demo
+
+distillEnv
+cleanEnv
+
+docs
+
+examples/torchvision/coco/*
+examples/torchvision/custom/*
+examples/torchvision/utils/*

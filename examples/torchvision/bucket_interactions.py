@@ -31,6 +31,7 @@ def download_checkpoint(bucket_name, checkpoint_key, local_file_path):
 def upload_checkpoint(local_file_path, bucket_name, checkpoint_key):
     s3 = boto3.client('s3')
     s3.upload_file(local_file_path, bucket_name, checkpoint_key)
+    print(f"Successfully uploaded checkpoint {checkpoint_key} to bucket {bucket_name}")
 
 def save_checkpoint(epoch, model, optimizer, bucket_name, checkpoint_key):
     checkpoint = {

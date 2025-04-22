@@ -21,6 +21,7 @@ from torchdistill.models.official import get_image_classification_model
 from torchdistill.models.registry import get_model
 
 import wandb
+import bucket_interactions as bi
 
 logger = def_logger.getChild(__name__)
 
@@ -155,11 +156,20 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
             logger.info('Best top-1 accuracy: {:.4f} -> {:.4f}'.format(best_val_top1_accuracy, val_top1_accuracy))
             logger.info('Updating ckpt at {}'.format(dst_ckpt_file_path))
             best_val_top1_accuracy = val_top1_accuracy
-            save_ckpt(student_model_without_ddp, optimizer, lr_scheduler,
-                      best_val_top1_accuracy, args, dst_ckpt_file_path,remote_save,bucket_name,accuracy_checkpoint_key)
+            save_ckpt(model=student_model_without_ddp, \
+                    optimizer=optimizer, \
+                    lr_scheduler=lr_scheduler, \
+                    best_value=best_val_top1_accuracy, \
+                    args=args, \
+                    output_file_path=dst_ckpt_file_path)
+            if remote_save:
+                bi.upload_checkpoint(dst_ckpt_file_path, bucket_name, accuracy_checkpoint_key)
+
+
         training_box.post_epoch_process()
         wandb.log({
-            "val_top1_accuracy": val_top1_accuracy
+            "val_top1_accuracy": val_top1_accuracy,
+            "epoch": epoch
         })
 
     if distributed:
@@ -242,6 +252,5 @@ def main(args):
 
 
 if __name__ == '__main__':
-    
     argparser = get_argparser()
     main(argparser.parse_args())
