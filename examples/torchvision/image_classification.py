@@ -41,6 +41,7 @@ def get_argparser():
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
+    parser.add_argument('-wandb', action="store_true", help='set weights and biases')
     parser.add_argument('-adjust_lr', action='store_true',
                         help='multiply learning rate by number of distributed processes (world_size)')
     return parser
@@ -51,8 +52,8 @@ def load_model(model_config, device, distributed):
     if model is None:
         repo_or_dir = model_config.get('repo_or_dir', None)
         model = get_model(model_config['key'], repo_or_dir, **model_config['kwargs'])
-
     src_ckpt_file_path = model_config.get('src_ckpt', None)
+    print(f"loading from {src_ckpt_file_path}")
     load_ckpt(src_ckpt_file_path, model=model, strict=True)
     return model.to(device)
 
@@ -73,7 +74,7 @@ def train_one_epoch(training_box, device, epoch, log_freq):
         metric_logger.meters['img/s'].update(batch_size / (time.time() - start_time))
         if (torch.isnan(loss) or torch.isinf(loss)) and is_main_process():
             raise ValueError('The training loop was broken due to loss = {}'.format(loss))
-        wandb.log({"train_loss": loss})
+    return loss
 
 
 def compute_accuracy(outputs, targets, topk=(1,)):
@@ -148,7 +149,7 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
     start_time = time.time()
     for epoch in range(args.start_epoch, training_box.num_epochs):
         training_box.pre_epoch_process(epoch=epoch)
-        train_one_epoch(training_box, device, epoch, log_freq)
+        loss = train_one_epoch(training_box, device, epoch, log_freq)
         val_top1_accuracy = evaluate(student_model, training_box.val_data_loader, device, device_ids, distributed,
                                      log_freq=log_freq, header='Validation:')
         if val_top1_accuracy > best_val_top1_accuracy and is_main_process():
@@ -167,10 +168,12 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
 
 
         training_box.post_epoch_process()
-        wandb.log({
-            "val_top1_accuracy": val_top1_accuracy,
-            "epoch": epoch
-        })
+        if args.wandb:
+            wandb.log({
+                "val_top1_accuracy": val_top1_accuracy,
+                "epoch": epoch,
+                "training_loss": loss,
+            })
 
     if distributed:
         dist.barrier()
@@ -207,24 +210,28 @@ def main(args):
     dataset_dict = config['datasets']
     models_config = config['models']
     teacher_model_config = models_config.get('teacher_model', None)
+    print(f"loading teacher model")
     teacher_model =\
         load_model(teacher_model_config, device, distributed) if teacher_model_config is not None else None
+
     student_model_config =\
         models_config['student_model'] if 'student_model' in models_config else models_config['model']
     src_ckpt_file_path = student_model_config.get('src_ckpt', None)
     dst_ckpt_file_path = student_model_config['dst_ckpt']
+
+    print(f"loading student model")
     student_model = load_model(student_model_config, device, distributed)
     ##WANDB INIT
-
-    run = wandb.init(
-            project=args.project_name,  # Specify your project
-            config={                        # Track hyperparameters and metadata
-                "run_log": args.run_log,
-                "device": args.device,
-                "teacher_model_config": teacher_model_config,
-                "student_model_config": student_model_config,
-            },
-        )
+    if args.wandb:
+        run = wandb.init(
+                project=args.project_name,  # Specify your project
+                config={                        # Track hyperparameters and metadata
+                    "run_log": args.run_log,
+                    "device": args.device,
+                    "teacher_model_config": teacher_model_config,
+                    "student_model_config": student_model_config,
+                },
+            )
 
 
     if args.log_config:
