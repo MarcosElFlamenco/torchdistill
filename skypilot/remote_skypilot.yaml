@@ -11,6 +11,9 @@ resources:
 # Its contents are synced to ~/sky_workdir/ on the cluster.
 workdir: .
 
+envs:
+  MODEL_CONFIG: $(MODEL_CONFIG)
+
 file_mounts:
   /checkpoints_buckets:
     source: s3://distillationbucket
@@ -21,9 +24,8 @@ file_mounts:
 setup: |
   echo "Running setup."
   pip install -r remote_configs/requirements.txt
-  echo $WANDB_API_KEY
-
+  echo $ENV_MODEL_CONFIG
 # Typical use: make use of resources, such as running training.
 # Invoked under the workdir (i.e., can use its files).
 run: |
- 	python examples/torchvision/image_classification.py --config $(MODEL_CONFIG) -wandb
+ 	python -um examples.torchvision.image_classification --config $ENV_MODEL_CONFIG -wandb

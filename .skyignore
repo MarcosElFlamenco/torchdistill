@@ -6,7 +6,6 @@ secrets.mk
 makefile
 
 tests
-torchdistill
 .gitignore
 CITATION.bib
 LICENSE

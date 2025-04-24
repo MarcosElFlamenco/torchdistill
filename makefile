@@ -25,7 +25,7 @@ validate:
 ##REMOTE COMMANDS
 CLUSTER_NAME := distill_cluster
 remote_test_distill:
-	export WANDB_API_KEY=$(WANDB_API_KEY) MODEL_CONFIG=$(MODEL_CONFIG) && sky launch -c $(CLUSTER_NAME) --env WANDB_API_KEY skypilot/$(REMOTE_YAML) -i 10 --down 
+	export WANDB_API_KEY=$(WANDB_API_KEY) ENV_MODEL_CONFIG=$(MODEL_CONFIG) && echo $$ENV_MODEL_CONFIG && sky launch -c $(CLUSTER_NAME) --env WANDB_API_KEY --env ENV_MODEL_CONFIG skypilot/$(REMOTE_YAML) -i 10 --down 
 
 retrieve_checkpoint:
 	rsync -Pavz $(CLUSTER_NAME):/home/ubuntu/sky_workdir/resource/ckpt/cifar10/kd/cifar10-resnet20_from_densenet_bc_k12_depth100-hyperparameter_tuning.pt /home/oscar/torchdistill/checkpoints
