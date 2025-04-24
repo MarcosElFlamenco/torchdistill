@@ -53,7 +53,6 @@ def load_model(model_config, device, distributed):
         repo_or_dir = model_config.get('repo_or_dir', None)
         model = get_model(model_config['key'], repo_or_dir, **model_config['kwargs'])
     src_ckpt_file_path = model_config.get('src_ckpt', None)
-    print(f"got the file path for the model {model_config["key"]} : {src_ckpt_file_path}")
     load_ckpt(src_ckpt_file_path, model=model, strict=True)
     return model.to(device)
 

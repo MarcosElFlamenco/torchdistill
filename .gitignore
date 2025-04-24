@@ -8,6 +8,5 @@ log
 remote_configs
 resource
 wandb
-makefile
 checkpoints
 .vscode
