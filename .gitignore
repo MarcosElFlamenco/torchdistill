@@ -7,7 +7,7 @@ distillEnv
 log
 remote_configs
 resource
-skypilot
 wandb
 makefile
 checkpoints
+.vscode

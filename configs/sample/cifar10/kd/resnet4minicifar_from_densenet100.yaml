@@ -88,12 +88,13 @@ models:
       pretrained: True
     src_ckpt:
   student_model:
-    key: &student_model_key 'resnet20'
+    repo_or_dir:
+    key: &student_model_key 'resnet4minicifar'
     kwargs:
-      num_classes: 10
+      num_classes: 5
       pretrained: False
     _experiment: &student_experiment !join [*dataset_name, '-', *student_model_key, '_from_', *teacher_model_key]
-    src_ckpt:
+    src_ckpt: checkpoints/ResNet4MiniCifar.pth
     dst_ckpt: !join ['./resource/ckpt/', *dataset_name, '/kd/', *student_experiment, '-hyperparameter_tuning.pt']
     remote_save: True
     bucket_name: distillationbucket 
@@ -174,3 +175,6 @@ test:
       num_workers: 16
       pin_memory: True
       drop_last: False
+
+dependencies:
+  - name: "resnet4minicifar"

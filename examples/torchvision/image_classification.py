@@ -21,7 +21,7 @@ from torchdistill.models.official import get_image_classification_model
 from torchdistill.models.registry import get_model
 
 import wandb
-import bucket_interactions as bi
+import examples.torchvision.bucket_interactions as bi
 
 logger = def_logger.getChild(__name__)
 
@@ -53,7 +53,7 @@ def load_model(model_config, device, distributed):
         repo_or_dir = model_config.get('repo_or_dir', None)
         model = get_model(model_config['key'], repo_or_dir, **model_config['kwargs'])
     src_ckpt_file_path = model_config.get('src_ckpt', None)
-    print(f"loading from {src_ckpt_file_path}")
+    print(f"got the file path for the model {model_config["key"]} : {src_ckpt_file_path}")
     load_ckpt(src_ckpt_file_path, model=model, strict=True)
     return model.to(device)
 
@@ -210,16 +210,13 @@ def main(args):
     dataset_dict = config['datasets']
     models_config = config['models']
     teacher_model_config = models_config.get('teacher_model', None)
-    print(f"loading teacher model")
     teacher_model =\
         load_model(teacher_model_config, device, distributed) if teacher_model_config is not None else None
-
     student_model_config =\
         models_config['student_model'] if 'student_model' in models_config else models_config['model']
     src_ckpt_file_path = student_model_config.get('src_ckpt', None)
     dst_ckpt_file_path = student_model_config['dst_ckpt']
 
-    print(f"loading student model")
     student_model = load_model(student_model_config, device, distributed)
     ##WANDB INIT
     if args.wandb:

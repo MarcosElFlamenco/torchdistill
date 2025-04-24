@@ -88,7 +88,7 @@ models:
       pretrained: True
     src_ckpt:
   student_model:
-    key: &student_model_key 'resnet20'
+    key: &student_model_key 'mobilenet_v2'
     kwargs:
       num_classes: 10
       pretrained: False
