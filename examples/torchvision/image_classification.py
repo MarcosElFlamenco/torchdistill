@@ -132,6 +132,7 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
                                     device, device_ids, distributed, lr_factor) if teacher_model is None \
         else get_distillation_box(teacher_model, student_model, dataset_dict, train_config,
                                   device, device_ids, distributed, lr_factor)
+    #out of this function the train loader is none
     best_val_top1_accuracy = 0.0
     optimizer, lr_scheduler = training_box.optimizer, training_box.lr_scheduler
     if file_util.check_if_exists(src_ckpt_file_path):
@@ -148,6 +149,7 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
     start_time = time.time()
     for epoch in range(args.start_epoch, training_box.num_epochs):
         training_box.pre_epoch_process(epoch=epoch)
+        #in the training box, no train data loader
         loss = train_one_epoch(training_box, device, epoch, log_freq)
         val_top1_accuracy = evaluate(student_model, training_box.val_data_loader, device, device_ids, distributed,
                                      log_freq=log_freq, header='Validation:')
@@ -204,7 +206,6 @@ def main(args):
         print("WARNING: you asked for a GPU but none is available")
         device = torch.device("cpu")
     else:
-        print(f"You asked for device {args.device} and that's what you'll get")
         device = torch.device(args.device)
     dataset_dict = config['datasets']
     models_config = config['models']

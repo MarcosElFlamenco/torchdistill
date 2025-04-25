@@ -65,6 +65,7 @@ class DistillationBox(object):
         train_data_loader, val_data_loader =\
             build_data_loaders(self.dataset_dict, [train_data_loader_config, val_data_loader_config],
                                self.distributed, self.accelerator)
+        print(f'train data laoder {train_data_loader}')
         if train_data_loader is not None:
             self.train_data_loader = train_data_loader
         if val_data_loader is not None:

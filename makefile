@@ -11,7 +11,7 @@ MODEL_CONFIG := configs/sample/cifar10/kd/$(YAML_FILE)
 ##LOCAL COMMANDS
 test_distill:
 	python -um examples.torchvision.image_classification \
-		--config $(MODEL_CONFIG)
+		--config $(MODEL_CONFIG) \
 		--run_log log/cifar10/kd/resnet20_from_densenet_bc_k12_depth100-hyperparameter_tuning.log \
 
 MODEL_TO_VALIDATE := densenet

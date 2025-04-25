@@ -137,6 +137,7 @@ def build_data_loaders(dataset_dict, data_loader_configs, distributed, accelerat
     data_loader_list = list()
     for data_loader_config in data_loader_configs:
         dataset_id = data_loader_config.get('dataset_id', None)
+        print(dataset_id in dataset_dict)
         data_loader = None if dataset_id is None or dataset_id not in dataset_dict \
             else build_data_loader(dataset_dict[dataset_id], data_loader_config, distributed, accelerator)
         data_loader_list.append(data_loader)
