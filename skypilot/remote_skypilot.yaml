@@ -1,4 +1,4 @@
-giresources:
+resources:
   # Optional; if left out, automatically pick the cheapest cloud.
   cloud: aws
   # 8x NVIDIA A100 GPU
