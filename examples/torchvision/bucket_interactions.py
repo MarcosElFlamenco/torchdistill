@@ -1,7 +1,10 @@
 import boto3
+import botocore
 import torch
 from tqdm import tqdm
-
+import argparse
+from torchdistill.common import file_util, yaml_util, module_util
+import os
 
 def empty_s3_bucket(bucket_name):
     s3 = boto3.resource('s3')
@@ -24,8 +27,10 @@ def download_checkpoint(bucket_name, checkpoint_key, local_file_path):
     s3 = boto3.client('s3')
     try:
         s3.download_file(bucket_name, checkpoint_key, local_file_path)
+        print(f"Downloaded from bucket {bucket_name}, file {checkpoint_key}, to local file {local_file_path}")
         return 0
-    except e:
+    except Exception as e:
+        print(f"Failed download with exception {e}")
         return 1
 
 def upload_checkpoint(local_file_path, bucket_name, checkpoint_key):
@@ -93,3 +98,22 @@ def download_bins_from_s3_with_progress(bucket_name, object_name, file_name):
         with tqdm(total=total_size_in_bytes, unit='B', unit_scale=True, desc=f"Downloading {object_name}") as bar:
             # Download the file in chunks and update the progress bar
             s3.download_fileobj(Bucket=bucket_name, Key=object_name, Fileobj=f, Callback=lambda bytes_transferred: bar.update(bytes_transferred))
+
+
+def get_argparser():
+    parser = argparse.ArgumentParser(description='Knowledge distillation for image classification models')
+    parser.add_argument('--config', required=True, help='yaml file path')
+    return parser
+
+
+def main(args):
+    config = yaml_util.load_yaml_file(os.path.expanduser(args.config))
+    bucket_name = config["models"]["student_model"]["bucket_name"]
+    checkpoint_key = config["models"]["student_model"]["checkpoint_key"]
+    local_file_path = config["models"]["student_model"]["dst_ckpt"]
+    download_checkpoint(bucket_name,checkpoint_key,local_file_path)
+
+
+if __name__ == "__main__":
+    argparser = get_argparser()
+    main(argparser.parse_args())

@@ -93,11 +93,11 @@ models:
       num_classes: 10
       pretrained: False
     _experiment: &student_experiment !join [*dataset_name, '-', *student_model_key, '_from_', *teacher_model_key]
-    src_ckpt:
-    dst_ckpt: !join ['./resource/ckpt/', *dataset_name, '/kd/', *student_experiment, '-hyperparameter_tuning.pt']
+    checkpoint_key: &checkpoint !join [*dataset_name,"_",*student_model_key,"_from_",*teacher_model_key,".pth"]
+    src_ckpt: checkpoints/mobilenet.pth
+    dst_ckpt: !join ["resource/ckpt/cifar10/kd/", *checkpoint]
     remote_save: True
     bucket_name: distillationbucket 
-    checkpoint_key: !join [*dataset_name,"_",*student_model_key,"_from_",*teacher_model_key]
 train:
   log_freq: 100
   num_epochs: 182

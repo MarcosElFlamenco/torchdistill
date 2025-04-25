@@ -152,7 +152,7 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
         val_top1_accuracy = evaluate(student_model, training_box.val_data_loader, device, device_ids, distributed,
                                      log_freq=log_freq, header='Validation:')
         if val_top1_accuracy > best_val_top1_accuracy and is_main_process():
-            accuracy_checkpoint_key = checkpoint_key + "_" + str(val_top1_accuracy) + ".pth"
+            accuracy_checkpoint_key = checkpoint_key
             logger.info('Best top-1 accuracy: {:.4f} -> {:.4f}'.format(best_val_top1_accuracy, val_top1_accuracy))
             logger.info('Updating ckpt at {}'.format(dst_ckpt_file_path))
             best_val_top1_accuracy = val_top1_accuracy
