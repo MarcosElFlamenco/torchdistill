@@ -110,7 +110,7 @@ def main(args):
     config = yaml_util.load_yaml_file(os.path.expanduser(args.config))
     bucket_name = config["models"]["student_model"]["bucket_name"]
     checkpoint_key = config["models"]["student_model"]["checkpoint_key"]
-    local_file_path = config["models"]["student_model"]["dst_ckpt"]
+    local_file_path = config["models"]["student_model"]["src_ckpt"]
     download_checkpoint(bucket_name,checkpoint_key,local_file_path)
 
 

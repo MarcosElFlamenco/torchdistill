@@ -32,7 +32,6 @@ def get_argparser():
     parser.add_argument('--config', required=True, help='yaml file path')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--run_log', help='log file path')
-    parser.add_argument('--project_name', default = "default classification project",help='project name')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N', help='start epoch')
     parser.add_argument('--seed', type=int, help='seed in random number generator')
     parser.add_argument('-disable_cudnn_benchmark', action='store_true', help='disable torch.backend.cudnn.benchmark')
@@ -142,10 +141,13 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
         best_val_top1_accuracy, _ = load_ckpt(src_ckpt_file_path, optimizer=optimizer, lr_scheduler=lr_scheduler)
 
     log_freq = train_config['log_freq']
-    student_config = config["models"]["student_model"]
-    remote_save = student_config.get("remote_save",False)
-    bucket_name = student_config.get("bucket_name",None)
-    checkpoint_key = student_config.get("checkpoint_key",None)
+    models_config = config["models"]
+    student_model_config =\
+        models_config['student_model'] if 'student_model' in models_config else models_config['model']
+
+    remote_save = student_model_config.get("remote_save",False)
+    bucket_name = student_model_config.get("bucket_name",None)
+    checkpoint_key = student_model_config.get("checkpoint_key",None)
 
 
     student_model_without_ddp = student_model.module if module_util.check_if_wrapped(student_model) else student_model
@@ -215,7 +217,7 @@ def main(args):
     teacher_model_config = models_config.get('teacher_model', None)
     teacher_model =\
         load_model(teacher_model_config, device, distributed) if teacher_model_config is not None else None
-    target_classes = teacher_model_config['kwargs'].get('target_classes',None)
+    target_classes = teacher_model_config['kwargs'].get('target_classes',None) if teacher_model_config else None
     print(f"target classes recovered, they are {target_classes}")
     student_model_config =\
         models_config['student_model'] if 'student_model' in models_config else models_config['model']
@@ -223,10 +225,11 @@ def main(args):
     dst_ckpt_file_path = student_model_config['dst_ckpt']
 
     student_model = load_model(student_model_config, device, distributed)
+    wandb_project_name = config["train"].get("wandb_project_name","default_project_name")
     ##WANDB INIT
     if args.wandb:
         run = wandb.init(
-                project=args.project_name,  # Specify your project
+                project=wandb_project_name,  # Specify your project
                 config={                        # Track hyperparameters and metadata
                     "run_log": args.run_log,
                     "device": args.device,
@@ -241,7 +244,7 @@ def main(args):
 
     if not args.test_only:
         train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ckpt_file_path,
-              device, device_ids, distributed, world_size, config, args)
+              device, device_ids, distributed, world_size, config, args, target_classes)
 
     student_model_without_ddp =\
         student_model.module if module_util.check_if_wrapped(student_model) else student_model
