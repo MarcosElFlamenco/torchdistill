@@ -2,9 +2,10 @@ include secrets.mk
 
 
 
-STUDENT_MODEL := mobilenet2
+STUDENT_MODEL := resnet20
 TEACHER_MODEL := densenet100
-YAML_FILE := $(STUDENT_MODEL)_from_$(TEACHER_MODEL).yaml
+DATASET := CIFAR5
+YAML_FILE := $(DATASET)_$(STUDENT_MODEL)_from_$(TEACHER_MODEL).yaml
 REMOTE_YAML := remote_skypilot.yaml
 MODEL_CONFIG := configs/sample/cifar10/kd/$(YAML_FILE)
 

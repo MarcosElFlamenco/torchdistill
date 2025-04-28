@@ -22,6 +22,7 @@ from torchdistill.models.registry import get_model
 
 import wandb
 import examples.torchvision.bucket_interactions as bi
+from examples.torchvision.change_targets import transform_targets
 
 logger = def_logger.getChild(__name__)
 
@@ -57,7 +58,7 @@ def load_model(model_config, device, distributed):
     return model.to(device)
 
 
-def train_one_epoch(training_box, device, epoch, log_freq):
+def train_one_epoch(training_box, device, epoch, log_freq,target_classes = None):
     metric_logger = MetricLogger(delimiter='  ')
     metric_logger.add_meter('lr', SmoothedValue(window_size=1, fmt='{value}'))
     metric_logger.add_meter('img/s', SmoothedValue(window_size=10, fmt='{value}'))
@@ -65,6 +66,8 @@ def train_one_epoch(training_box, device, epoch, log_freq):
     for sample_batch, targets, supp_dict in \
             metric_logger.log_every(training_box.train_data_loader, log_freq, header):
         start_time = time.time()
+        if target_classes != None:
+            targets = transform_targets(targets,target_classes)
         sample_batch, targets = sample_batch.to(device), targets.to(device)
         loss = training_box.forward_process(sample_batch, targets, supp_dict)
         training_box.post_forward_process(loss=loss)
@@ -124,7 +127,7 @@ def evaluate(model, data_loader, device, device_ids, distributed, log_freq=1000,
 
 
 def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ckpt_file_path,
-          device, device_ids, distributed, world_size, config, args):
+          device, device_ids, distributed, world_size, config, args,target_classes):
     logger.info('Start training')
     train_config = config['train']
     lr_factor = world_size if distributed and args.adjust_lr else 1
@@ -150,7 +153,7 @@ def train(teacher_model, student_model, dataset_dict, src_ckpt_file_path, dst_ck
     for epoch in range(args.start_epoch, training_box.num_epochs):
         training_box.pre_epoch_process(epoch=epoch)
         #in the training box, no train data loader
-        loss = train_one_epoch(training_box, device, epoch, log_freq)
+        loss = train_one_epoch(training_box, device, epoch, log_freq,target_classes)
         val_top1_accuracy = evaluate(student_model, training_box.val_data_loader, device, device_ids, distributed,
                                      log_freq=log_freq, header='Validation:')
         if val_top1_accuracy > best_val_top1_accuracy and is_main_process():
@@ -212,6 +215,8 @@ def main(args):
     teacher_model_config = models_config.get('teacher_model', None)
     teacher_model =\
         load_model(teacher_model_config, device, distributed) if teacher_model_config is not None else None
+    target_classes = teacher_model_config['kwargs'].get('target_classes',None)
+    print(f"target classes recovered, they are {target_classes}")
     student_model_config =\
         models_config['student_model'] if 'student_model' in models_config else models_config['model']
     src_ckpt_file_path = student_model_config.get('src_ckpt', None)
