@@ -94,7 +94,7 @@ def compute_accuracy(outputs, targets, topk=(1,)):
 
 
 @torch.inference_mode()
-def evaluate(model, data_loader, device, device_ids, distributed, log_freq=1000, title=None, header='Test:'):
+def evaluate(model, data_loader, device, device_ids, distributed, log_freq=1000, title=None, header='Test:',target_classes=None):
     model.to(device)
     if distributed:
         model = DistributedDataParallel(model, device_ids=device_ids)
@@ -108,6 +108,8 @@ def evaluate(model, data_loader, device, device_ids, distributed, log_freq=1000,
     metric_logger = MetricLogger(delimiter='  ')
     for image, target in metric_logger.log_every(data_loader, log_freq, header):
         image = image.to(device, non_blocking=True)
+        if target_classes != None:
+            target = transform_targets(target)
         target = target.to(device, non_blocking=True)
         output = model(image)
         acc1, acc5 = compute_accuracy(output, target, topk=(1, 5))

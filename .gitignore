@@ -10,3 +10,4 @@ resource
 wandb
 checkpoints
 .vscode
+data

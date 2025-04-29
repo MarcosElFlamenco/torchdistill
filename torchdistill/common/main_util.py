@@ -369,7 +369,6 @@ def save_ckpt(model, optimizer, lr_scheduler, best_value, args, output_file_path
     :param output_file_path: output file path.
     :type output_file_path: str
     """
-    print(' hollw')
     make_parent_dirs(output_file_path)
     model_state_dict = model.module.state_dict() if check_if_wrapped(model) else model.state_dict()
     lr_scheduler_state_dict = lr_scheduler.state_dict() if lr_scheduler is not None else None

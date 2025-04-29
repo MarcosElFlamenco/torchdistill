@@ -1,9 +1,12 @@
 dependencies:
   - name: "examples.torchvision.teacher_wrapper"
 
+
+experiment_specifics: &experiment_specifics "selective5"
+
 datasets:
   cifar10_sub_splits: &cifar10_sub_splits !import_call
-    _name: &dataset_name 'cifar10'
+    _name: &dataset_name 'cifar5'
     _root: &root_dir !join ['~/datasets/', *dataset_name]
     key: 'torchdistill.datasets.util.split_dataset'
     init:
@@ -101,8 +104,8 @@ models:
     kwargs:
       num_classes: 5
       pretrained: False
-    _experiment: &student_experiment !join [*dataset_name, '-', *student_model_key, '_from_', *teacher_model_key]
-    checkpoint_key: &checkpoint !join [*dataset_name,"_",*student_nickname,"_from_",*teacher_nickname,".pth"]
+    _experiment: &student_experiment !join [*experiment_specifics, '-', *student_model_key, '_from_', *teacher_model_key]
+    checkpoint_key: &checkpoint !join [*experiment_specifics,"_",*student_nickname,"_from_",*teacher_nickname,".pth"]
     src_ckpt:
     dst_ckpt: !join ["resource/ckpt/cifar10/kd/", *checkpoint]
     remote_save: True
