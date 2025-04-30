@@ -30,16 +30,9 @@ QUANTIZE_YAML := $(QUANTIZE_DATASET)_$(QUANTIZE_MODEL)_quantize.yaml
 QUANTIZE_CONFIG := configs/sample/cifar10/quantization/$(QUANTIZE_YAML)
 
 quantize:
+	@echo $(FLAGS)
 	python -um examples.torchvision.model_quantization \
-		--config $(QUANTIZE_CONFIG) $(O)
-
-
-#MODEL_TO_VALIDATE := densenet
-validate:
-	python -um examples.torchvision.image_classification \
-		--config $(DISTILL_CONFIG) \
-		--run_log log/cifar10/kd/resnet20_from_densenet_bc_k12_depth100-hyperparameter_tuning.log \
-		-test_only $(O)
+		--config $(QUANTIZE_CONFIG) -test_only
 
 
 ##REMOTE COMMANDS

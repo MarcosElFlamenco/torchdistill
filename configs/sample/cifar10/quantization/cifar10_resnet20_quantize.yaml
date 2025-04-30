@@ -87,7 +87,7 @@ model:
     num_classes: 10
     pretrained: False
   _experiment: &student_experiment !join [*dataset_name, '-', *model_key, "_quantization"]
-  checkpoint_key: &checkpoint !join [*dataset_name,"_",*nickname,"_quantized.pth"]
+  checkpoint_key: &checkpoint !join [*dataset_name,"_",*nickname,"_quantized_no_fusing.pth"]
   src_ckpt: !join ["resource/ckpt/", *dataset_name, "/kd/", *full_name]
   dst_ckpt: !join ["resource/ckpt/", *dataset_name, "/quantization/",*checkpoint]
 

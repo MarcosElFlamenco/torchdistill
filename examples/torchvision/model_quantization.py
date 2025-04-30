@@ -9,6 +9,8 @@ from torch.nn.parallel import DistributedDataParallel
 from torchdistill.misc.log import set_basic_log_config, setup_log_file, SmoothedValue, MetricLogger
 from examples.torchvision.change_targets import transform_targets
 from torchdistill.common.constant import def_logger
+import time
+import datetime
 
 logger = def_logger.getChild(__name__)
 
@@ -16,6 +18,8 @@ def get_argparser():
     parser = argparse.ArgumentParser(description='Knowledge distillation for image classification models')
     parser.add_argument('--config', required=True, help='yaml file path')
     parser.add_argument('-test_only', action='store_true', help='only test the models')
+    parser.add_argument('-fuse', action='store_true', help='fuse the layers')
+    parser.add_argument('-cuda', action='store_true', help='run on cuda')
 
     return parser
 
@@ -67,60 +71,83 @@ def evaluate(model, data_loader, device, device_ids, distributed, log_freq=1000,
     logger.info(' * Acc@1 {:.4f}\tAcc@5 {:.4f}\n'.format(top1_accuracy, top5_accuracy))
     return metric_logger.acc1.global_avg
 
+def load_model_eval(model_config):
+    model = resnet.resnet(20,10,False,False)
+    state_dict = model_config["src_ckpt"]
+    model.load_state_dict(torch.load(state_dict,weights_only=False)["model"])
+    model.eval()
+    return model
+
 
 def main(args):
     
     config = yaml_util.load_yaml_file(os.path.expanduser(args.config))
     # Load your pre-trained model
-    model = resnet.resnet(20,10,False,False)
-    state_dict = config["model"]["src_ckpt"]
-    model.load_state_dict(torch.load(state_dict,weights_only=False)["model"])
-    model.eval()
 
-    # Fuse modules if applicable (e.g., Conv+BN+ReLU)
-    model_fused = torch.quantization.fuse_modules(model, [['conv1', 'bn1', 'relu']])
+    model_config = config["model"]
+    model = load_model_eval(model_config)
+   # Use 'qnnpack' for ARM CPUs: torch.quantization.get_default_qconfig('qnnpack')
 
-    # Set up quantization configuration
-    model_fused.qconfig = torch.quantization.get_default_qconfig('fbgemm')  # for x86 CPUs
-    # Use 'qnnpack' for ARM CPUs: torch.quantization.get_default_qconfig('qnnpack')
-
-    # Prepare model for quantization
-    model_prepared = torch.quantization.prepare(model_fused)
     calibration_data_loader_config = config["test"]["test_data_loader"]
 
     dataset_dict = config['datasets']
     calibration_data_loader = build_data_loader(dataset_dict[calibration_data_loader_config['dataset_id']],calibration_data_loader_config,False)
 
-    model_config = config["model"]
-    # Convert to quantized model
-    print(f"test only is {args.test_only}")
+    
+    #QUANTIZING    
     if not args.test_only:
-        print("Quantizing model...")
+        start_time = time.time()
+        logger.info("Quantizing model...")
+        if args.fuse:
+            model_fused = torch.quantization.fuse_modules(model, [['conv1', 'bn1', 'relu']])
+        else:
+            model_fused = model
+        # Set up quantization configuration
+        model_fused.qconfig = torch.quantization.get_default_qconfig('fbgemm')  # for x86 CPUs
+
+        # Prepare model for quantization
+        model_prepared = torch.quantization.prepare(model_fused)
+ 
         # Calibrate with sample data
         with torch.no_grad():
             for data, _ in calibration_data_loader:
                 model_prepared(data)
 
         quantized_model = torch.quantization.convert(model_prepared)
-        print(f"Model is quantized")
+        logger.info(f"Model is quantized")
+        total_time = time.time() - start_time
+        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        logger.info('Quantization time {}'.format(total_time_str))
+ 
     else:
         quantized_model = torch.load(model_config["dst_ckpt"],weights_only=False)
-        print(quantized_model)
         print(f"retrieved quantized model from {model_config["dst_ckpt"]}")
+    print(f"quantized model is {quantized_model.type}")
+    quantized_model.eval()
 
-    #print(f" quantized model type {quantized_model.type()}")
+    # After quantization is complete:
+    #scripted_quantized_model = torch.jit.script(quantized_model)
+    #scripted_quantized_model.save('quantized_model_scripted.pt')
+
+    # Later, to reload:
+    #loaded_model = torch.jit.load('quantized_model_scripted.pt')
+    #loaded_model.eval()
 
     val_data_loader_config = config['quantize']["val_data_loader"]
     val_data_loader = build_data_loader(dataset_dict[val_data_loader_config['dataset_id']],val_data_loader_config,False)
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+
+    if args.cuda:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else: 
+        device = torch.device("cpu")
     #val_top1_accuracy = evaluate(quantized_model, val_data_loader, device, None, False,log_freq=config["quantize"]["log_freq"],header="Validation")
 
     # Save quantized model
-    dst_ckpt = config["model"]["dst_ckpt"]
-    print(f'saving model')
-    torch.save(quantized_model, dst_ckpt)
-    print("model saved")
+    if not args.test_only:
+        dst_ckpt = config["model"]["dst_ckpt"]
+        print(f'saving model')
+        torch.save(quantized_model, dst_ckpt)
+        print("model saved")
 
 if __name__ == "__main__":
     argparser = get_argparser()
