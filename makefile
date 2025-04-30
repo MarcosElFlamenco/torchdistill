@@ -4,7 +4,7 @@ include secrets.mk
 
 STUDENT_MODEL := resnet20
 TEACHER_MODEL := densenet100
-DATASET := CIFAR5
+DATASET := CIFAR10
 DISTILL_YAML := $(DATASET)_$(STUDENT_MODEL)_from_$(TEACHER_MODEL).yaml
 REMOTE_DISTILL_YAML := remote_distill.yaml
 DISTILL_CONFIG := configs/sample/cifar10/kd/$(DISTILL_YAML)
@@ -24,18 +24,26 @@ train_cross_entropy:
 		--config $(CE_CONFIG) \
 		--run_log log/cifar10/kd/resnet20_from_densenet_bc_k12_depth100-hyperparameter_tuning.log \
 
+QUANTIZE_MODEL := resnet20
+QUANTIZE_DATASET := cifar10
+QUANTIZE_YAML := $(QUANTIZE_DATASET)_$(QUANTIZE_MODEL)_quantize.yaml
+QUANTIZE_CONFIG := configs/sample/cifar10/quantization/$(QUANTIZE_YAML)
+
+quantize:
+	python -um examples.torchvision.model_quantization \
+		--config $(QUANTIZE_CONFIG) $(O)
+
 
 #MODEL_TO_VALIDATE := densenet
 validate:
 	python -um examples.torchvision.image_classification \
 		--config $(DISTILL_CONFIG) \
 		--run_log log/cifar10/kd/resnet20_from_densenet_bc_k12_depth100-hyperparameter_tuning.log \
-		-test_only \
-		-student_only
+		-test_only $(O)
 
 
 ##REMOTE COMMANDS
-DISTILL_CLUSTER_NAME := other_distill_cluster
+DISTILL_CLUSTER_NAME := distill_cluster
 remote_distill:
 	export WANDB_API_KEY=$(WANDB_API_KEY) ENV_MODEL_CONFIG=$(DISTILL_CONFIG) && echo $$ENV_MODEL_CONFIG && sky launch -c $(DISTILL_CLUSTER_NAME) --env WANDB_API_KEY --env ENV_MODEL_CONFIG skypilot/$(REMOTE_DISTILL_YAML) -i 10 --down
 

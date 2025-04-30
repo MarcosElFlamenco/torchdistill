@@ -79,29 +79,19 @@ datasets:
                   init:
                     kwargs: *normalize_kwargs
 
-models:
-  teacher_model:
-    key: &teacher_model_key 'densenet_bc_k12_depth100'
-    nickname: &teacher_nickname 'densenet100'
-    kwargs:
-      num_classes: 10
-      memory_efficient: False
-      pretrained: True
-    src_ckpt:
-  student_model:
-    key: &student_model_key 'resnet20'
-    nickname: &student_nickname "resnet20"
-    kwargs:
-      num_classes: 10
-      pretrained: False
-    _experiment: &student_experiment !join [*dataset_name, '-', *student_model_key, '_from_', *teacher_model_key]
-    checkpoint_key: &checkpoint !join [*dataset_name,"_",*student_nickname,"_from_",*teacher_nickname,".pth"]
-    src_ckpt: !join ["resource/ckpt/", *dataset_name, "/kd/", *checkpoint]
-    dst_ckpt: !join [*checkpoint]
-    remote_save: True
-    bucket_name: distillationbucket 
-train:
-  wandb_project_name: *checkpoint
+model:
+  key: &model_key 'resnet20'
+  nickname: &nickname "resnet20"
+  full_name: &full_name "cifar10_resnet20_from_densenet100.pth"
+  kwargs:
+    num_classes: 10
+    pretrained: False
+  _experiment: &student_experiment !join [*dataset_name, '-', *model_key, "_quantization"]
+  checkpoint_key: &checkpoint !join [*dataset_name,"_",*nickname,"_quantized.pth"]
+  src_ckpt: !join ["resource/ckpt/", *dataset_name, "/kd/", *full_name]
+  dst_ckpt: !join ["resource/ckpt/", *dataset_name, "/quantization/",*checkpoint]
+
+quantize:
   log_freq: 100
   num_epochs: 182
   train_data_loader:
