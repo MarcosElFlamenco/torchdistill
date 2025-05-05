@@ -33,8 +33,7 @@ quantize:
 	@echo $(FLAGS)
 	python -um examples.torchvision.model_quantization \
 		--config $(QUANTIZE_CONFIG) \
-		--type dynamic
-
+		--type dynamic \
 
 ##REMOTE COMMANDS
 DISTILL_CLUSTER_NAME := distill_cluster

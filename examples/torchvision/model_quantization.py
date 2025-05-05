@@ -15,8 +15,9 @@ import datetime
 logger = def_logger.getChild(__name__)
 
 
-def val_top1_accuracy_wrapper(model,quantized_model,config,dataset_dict,args):
+def val_top1_accuracy_wrapper(model,quantized_model,config,args):
 
+    dataset_dict = config["datasets"] 
     val_data_loader_config = config['quantize']["val_data_loader"]
     val_data_loader = build_data_loader(dataset_dict[val_data_loader_config['dataset_id']],val_data_loader_config,False)
     if args.cuda:
@@ -111,72 +112,75 @@ def format_size(size_bytes):
     
     return f"{size_bytes:.2f} {size_names[i]}"
 
-def main(args):
-    set_basic_log_config()
-
-    config = yaml_util.load_yaml_file(os.path.expanduser(args.config))
-    # Load your pre-trained model
-
-    model_config = config["model"]
-    model = load_model(model_config,args).eval()
-   # Use 'qnnpack' for ARM CPUs: torch.quantization.get_default_qconfig('qnnpack')
+def quantize(model,args,config):
 
     calibration_data_loader_config = config["test"]["test_data_loader"]
 
     dataset_dict = config['datasets']
     calibration_data_loader = build_data_loader(dataset_dict[calibration_data_loader_config['dataset_id']],calibration_data_loader_config,False)
 
-    
-    #QUANTIZING    
-    if not args.test_only:
-        start_time = time.time()
-        logger.info(f"Quantizing model with option: {args.type} ...")
-        if args.type == "static":
-            logger.info("WARNING static quantization is not supported as of rn")
-            if args.fuse:
-                print("Fusing model")
-                model_fused = torch.quantization.fuse_modules(model, [['conv1', 'bn1', 'relu']])
-            else:
-                print('Model will not be fused')
-                model_fused = model
-            # Set up quantization configuration
-            model_fused.qconfig = torch.quantization.get_default_qconfig('fbgemm')  # for x86 CPUs
-
-            # Prepare model for quantization
-            model_prepared = torch.quantization.prepare(model_fused)
-    
-            # Calibrate with sample data
-            with torch.no_grad():
-                for data, _ in calibration_data_loader:
-                    model_prepared(data)
-
-            quantized_model = torch.quantization.convert(model_prepared)
-        elif args.type == "dynamic":
-            quantized_model = torch.quantization.quantize_dynamic(
-                model, 
-                {torch.nn.Linear, torch.nn.LSTM}, 
-                dtype=torch.qint8
-            )
+    start_time = time.time()
+    logger.info(f"Quantizing model with option: {args.type} ...")
+    if args.type == "static":
+        logger.info("WARNING static quantization is not supported as of rn")
+        if args.fuse:
+            print("Fusing model")
+            model_fused = torch.quantization.fuse_modules(model, [['conv1', 'bn1', 'relu']])
         else:
-            print(f"quantization type {args.type} is not recognized")
-        logger.info(f"Model is quantized")
-        total_time = time.time() - start_time
-        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        logger.info('Quantization time {}'.format(total_time_str))
-        dst_ckpt = config["model"]["dst_ckpt"]
-        torch.save(quantized_model, dst_ckpt)
-        # After quantization is complete:
-        logger.info(f"Original model size: {format_size(os.path.getsize(config["model"]["src_ckpt"]))}")
-        logger.info(f"Quantized model size: {format_size(os.path.getsize(config["model"]["dst_ckpt"]))}")
-        logger.info(f"Successfully saved model to {dst_ckpt}")
+            print('Model will not be fused')
+            model_fused = model
+        # Set up quantization configuration
+        model_fused.qconfig = torch.quantization.get_default_qconfig('fbgemm')  # for x86 CPUs
+
+        # Prepare model for quantization
+        model_prepared = torch.quantization.prepare(model_fused)
+
+        # Calibrate with sample data
+        with torch.no_grad():
+            for data, _ in calibration_data_loader:
+                model_prepared(data)
+
+        quantized_model = torch.quantization.convert(model_prepared)
+    elif args.type == "dynamic":
+        quantized_model = torch.quantization.quantize_dynamic(
+            model, 
+            {torch.nn.Linear, torch.nn.LSTM}, 
+            dtype=torch.qint8
+        )
+    else:
+        print(f"quantization type {args.type} is not recognized")
+    logger.info(f"Model is quantized")
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+    logger.info('Quantization time {}'.format(total_time_str))
+    dst_ckpt = config["model"]["dst_ckpt"]
+    torch.save(quantized_model, dst_ckpt)
+    # After quantization is complete:
+    logger.info(f"Original model size: {format_size(os.path.getsize(config["model"]["src_ckpt"]))}")
+    logger.info(f"Quantized model size: {format_size(os.path.getsize(config["model"]["dst_ckpt"]))}")
+    logger.info(f"Successfully saved model to {dst_ckpt}")
+    return quantized_model
  
+def main(args):
+    set_basic_log_config()
+
+    config = yaml_util.load_yaml_file(os.path.expanduser(args.config))
+
+    # Load your pre-trained model
+    model_config = config["model"]
+    model = load_model(model_config,args).eval()
+
+    # Use 'qnnpack' for ARM CPUs: torch.quantization.get_default_qconfig('qnnpack')
+    #QUANTIZING
+    if not args.test_only:
+        quantized_model = quantize(model,args,config)
     else:
         quantized_model = torch.load(model_config["dst_ckpt"],weights_only=False)
-        print(f"Retrieved quantized model from {model_config["dst_ckpt"]}")
+        logger.info(f"Retrieved quantized model from {model_config["dst_ckpt"]}")
 
     quantized_model.eval()
 
-    val_top1_accuracy_wrapper(model,quantized_model,config,dataset_dict,args)
+    val_top1_accuracy_wrapper(model,quantized_model,config,args)
     #val_top1_accuracy_wrapper(quantized_model,config,dataset_dict,args)
 
 if __name__ == "__main__":
