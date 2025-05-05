@@ -32,7 +32,8 @@ QUANTIZE_CONFIG := configs/sample/cifar10/quantization/$(QUANTIZE_YAML)
 quantize:
 	@echo $(FLAGS)
 	python -um examples.torchvision.model_quantization \
-		--config $(QUANTIZE_CONFIG) -test_only
+		--config $(QUANTIZE_CONFIG) \
+		--type dynamic
 
 
 ##REMOTE COMMANDS

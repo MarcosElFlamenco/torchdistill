@@ -10,4 +10,5 @@ resource
 wandb
 checkpoints
 .vscode
+*.pth
 data
